@@ -58,9 +58,10 @@ public class MissionManager : Manager<MissionManager>
 
         MissionEventDefinition = MissionEvents.Find(me => me.MissionEventID == missionName).MissionEventContainer; // читаем описание миссии из листа всех миссий/событий
 
+        CharacterInventory.Instance.OnMissionGet(MissionEventDefinition.MissionNameKey, MissionEventDefinition.MissionDescriptionKey); //  для отображения в UI
 
 
-        
+
 
 
         // показать в интерфейсе текст новой задачи
@@ -69,7 +70,7 @@ public class MissionManager : Manager<MissionManager>
 
         // установить элемент окончания миссии (коллайдр, кнопка и т.п.)
         // активируем коллайдр, который относится к этой миссии
-        switch(MissionEventDefinition.MissionEventEnd)    // зацениваем, что должно завершить миссию
+        switch (MissionEventDefinition.MissionEventEnd)    // зацениваем, что должно завершить миссию
         {
             case MissionEventEndType.COLLIDER: // если миссию заканчивает коллайдр, то начнём его слушать
                 // А ТАКЖЕ ПРЕДУСМОТРЕТЬ ШАНС, ЧТО МИССИЯ ВЫПОЛНЕНА РАНЕЕ, т.е. например, реактор уже был найден к моменту прочтения сообщения и т.п.
@@ -102,6 +103,10 @@ public class MissionManager : Manager<MissionManager>
     public void CloseMission(string missionName)    // надо ещё запомнить, что миссия пройдена, записать её в список выполненных миссий, сохранить состояние для сейва
     {
         if (ActiveMissionName != missionName) return;  // если попытка закрыть уже закрытую миссию, то выходим
+
+
+        // обработать завершение миссии в интерфейсе - перенести миссию в завершённые
+        CharacterInventory.Instance.OnMissionClose(MissionEventDefinition.MissionNameKey, MissionEventDefinition.MissionDescriptionKey);
 
         Debug.Log("Завершена миссия  " + missionName);
 

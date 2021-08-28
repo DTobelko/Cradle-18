@@ -28,4 +28,7 @@ public class MissionEvent_SO : ScriptableObject
 
     public string EndMECollider = null; // коллайдр завершения миссии (ссылка в виде строки на элемент листа объекта MissionEventColliders сцены Gameplay
 
+    public string MissionNameKey = "";  // ключ локализованной строки для названия миссии
+    public string MissionDescriptionKey = ""; // ключ локализованной строки для описания миссии
+
 }

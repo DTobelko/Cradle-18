@@ -3,14 +3,26 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using System.Linq;
 
 public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
 {
     public GameObject InventoryDisplayHolder;
+
+    public GameObject ActiveMissionsHolder; // окно для активных миссий
+    public GameObject FinishedMissionsHolder; // окно для завершённых миссий
+
     public UnityEvent OnToggleInventory;
     //   public static CharacterInventory instance;
     [SerializeField] private Transform FileNamesContainer;  // трансформ для отображения имён файлов
+    [SerializeField] private Transform MissionsContainer;  // трансформ для отображения активных миссий
+    [SerializeField] private Transform FinishedMissionsContainer;  // трансформ для отображения активных миссий
+
+
     [SerializeField] private GameObject FileNameAndTypePrefab;
+    [SerializeField] private GameObject MissionPrefab;  // Строка "миссия" для лога
+    [SerializeField] private Text MissionText;  // контент миссии
+
     [SerializeField] private Text ArticleText;  // контент планшета
 
     [SerializeField] private Transform LettersContainer;  // трансформ для отображения имён писем
@@ -22,7 +34,11 @@ public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
 
 
     private List<GameObject> MobileFileRows = new List<GameObject>(); // масссив строк логов
+
     private List<GameObject> LettersRows = new List<GameObject>(); // масссив строк писем
+
+    private List<GameObject> ActiveMissionRows = new List<GameObject>(); // масссив строк активных миссий
+    private List<GameObject> FinishedMissionRows = new List<GameObject>(); // масссив строк завершённых миссий
 
     private Dictionary<int, ItemAction> itemsInInventory = new Dictionary<int, ItemAction>(); // массив объектов в инвентаре
 
@@ -33,6 +49,13 @@ public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
     [SerializeField] private Text itemName;
     [SerializeField] private Text itemDefinition;
     [SerializeField] private Image itemImage;
+
+    [SerializeField] private Button ActiveMissionsButton;
+    [SerializeField] private Button FinishedMissionsButton;
+
+    [SerializeField] private Sprite YellowButtonSprite;
+    [SerializeField] private Sprite BlueButtonSprite;
+
 
     private void Start()
     {
@@ -88,10 +111,39 @@ public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
 
         SoundManager.Instance.PlaySoundEffect(SoundEffect.MenuSelectionClick);
 
-      //  Debug.Log("inventoryDisplaySlots[] = " + inventoryDisplaySlots);
+      
+    }
+
+    public void ToggleActiveMissions(bool ActiveOrFinished)  // переключаемся между активными и завершёнными миссиями
+    {   
+        // 1 - Active, 0 - finished
+           ActiveMissionsHolder.SetActive(ActiveOrFinished);
+           FinishedMissionsHolder.SetActive(!ActiveOrFinished);
+
+        // подстветить жёлтым цветом кнопку выбранного раздела
+        MissionButtonsSpriteSwap(ActiveOrFinished);
+
+
+        SoundManager.Instance.PlaySoundEffect(SoundEffect.MenuSelectionClick);
+
 
     }
 
+    private void MissionButtonsSpriteSwap(bool ActiveOrFinished)   // подстветить жёлтым цветом кнопку выбранного раздела
+    {
+        
+        if (ActiveOrFinished) // если смотрим на активные миссии, то подсветим жёлтым кнопку активных, и синим - кнопку завершнных
+        {
+            ActiveMissionsButton.GetComponent<Image>().sprite = YellowButtonSprite;
+            FinishedMissionsButton.GetComponent<Image>().sprite = BlueButtonSprite;
+
+        }
+        else
+        {
+            ActiveMissionsButton.GetComponent<Image>().sprite = BlueButtonSprite;
+            FinishedMissionsButton.GetComponent<Image>().sprite = YellowButtonSprite;
+        }
+    }
 
 
     #region Reading Tablets
@@ -158,6 +210,16 @@ public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
     public void LoadFileContent(string fileKey)
     {
         ArticleText.text = LocalizationManager.instance.GetLocalizedValue(fileKey);
+    }
+
+    public void LoadMissionContent(string fileKey)
+    {
+        MissionText.text = LocalizationManager.instance.GetLocalizedValue(fileKey);
+    }
+
+    private void ClearMissionContent()
+    {
+        MissionText.text = "";
     }
 
 
@@ -238,6 +300,67 @@ public class CharacterInventory : Manager<CharacterInventory> //MonoBehaviour
 
     #endregion
 
+
+    #region  Missions
+
+    public void OnMissionGet(string fileNameKey, string fileKey) // подгружаем полученную миссию в лог
+    {
+        AddMissionToLog(fileNameKey, fileKey);
+    }
+
+    public void OnMissionClose(string fileNameKey, string fileKey) // перемещаем миссию в завершённые
+    {
+        
+        // для начала очистим окно детального описания
+            ClearMissionContent();
+
+        // перемещаем в список завершённых
+
+
+        // найти строку в массиве ActiveMissionRows и переместить её в FinishedMissionRows
+
+        // ВнИМАНИЕ!!! ДАННАЯ РЕАЛИЗАЦИЯ ТОЛЬКО ДЛЯ СЛУЧАЯ ОДНОЙ АКТИВНОЙ МИССИИ
+         GameObject missionInstance = ActiveMissionRows.ElementAt(0);
+
+
+
+             // поменять родителя строки на FinishedMissionContainer
+             missionInstance.transform.SetParent(FinishedMissionsContainer, false);
+             missionInstance.transform.SetSiblingIndex(0); // новая строка - в самое начало списка
+             FinishedMissionRows.Add(missionInstance);
+        
+        // удалить миссию из листа активных
+        ActiveMissionRows.Remove(missionInstance);
+
+    }
+
+    private void AddMissionToLog(string fileNameKey, string fileKey)
+    {
+        // добавляемм запись в журнале миссий
+        GameObject missionInstance = Instantiate(MissionPrefab);  // создаём UI строку с названием миссии
+        missionInstance.transform.SetParent(MissionsContainer, false);   // прикрепляем строку к списку vertical Layout group; здесь false противодействует тому, чтобы scale нового объекта был 0
+
+        missionInstance.transform.SetSiblingIndex(0);   // новая строка - в самое начало списка
+
+
+
+        ActiveMissionRows.Add(missionInstance); // запомним сохранённую строку. В массиве строка вставляется в конец
+
+
+        LogMission logfile = missionInstance.GetComponent<LogMission>();
+        logfile.SetMissionData(LocalizationManager.instance.GetLocalizedValue(fileNameKey),  fileKey);  //записываем значения
+
+
+        // теперь надо уубрать подстветку со всех остальных файлов и раскрасить их
+        TurnOffHighLighting();
+
+        HighlightRow(missionInstance, true);  //  подсветим добавленную строку
+
+        // и наконец нужно подгрузить текст в соседнее окно
+        LoadMissionContent(fileKey);
+    }
+
+    #endregion
 
     #region Pick up items
 
